@@ -13,7 +13,7 @@ This makes it easy to:
 ## Example Log Output
 
 ```py
-from echoquill import Logger
+from equill import Logger
 logger = Logger(log_dir="logs", console_output=True)
 
 logger.info("Training started...")
