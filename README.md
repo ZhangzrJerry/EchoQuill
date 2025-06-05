@@ -10,7 +10,13 @@ This makes it easy to:
 - Compare results across runs
 - Maintain clean separation from standard logs (`INFO`, `WARNING`, etc.)
 
-## Example Log Output
+## Installation
+
+```bash
+pip install git@https://github.com/ZhangzrJerry/EchoQuill.git
+```
+
+## Example Output
 
 ```py
 from equill import Logger

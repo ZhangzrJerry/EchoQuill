@@ -91,20 +91,20 @@ class BetterLogger:
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
-    def debug(self, msg):
-        self.logger.debug(msg)
+    def debug(self, *args, sep=" ", end=""):
+        self.logger.debug(sep.join(str(arg) for arg in args) + end)
 
-    def info(self, msg):
-        self.logger.info(msg)
+    def info(self, *args, sep=" ", end=""):
+        self.logger.info(sep.join(str(arg) for arg in args) + end)
 
-    def warn(self, msg):
-        self.logger.warning(msg)
+    def warn(self, *args, sep=" ", end=""):
+        self.logger.warning(sep.join(str(arg) for arg in args) + end)
 
-    def error(self, msg):
-        self.logger.error(msg)
+    def error(self, *args, sep=" ", end=""):
+        self.logger.error(sep.join(str(arg) for arg in args) + end)
 
-    def param(self, msg):
-        self.logger.log(self.LEVELS["param"], msg)
+    def param(self, *args, sep=" ", end=""):
+        self.logger.log(self.LEVELS["param"], sep.join(str(arg) for arg in args) + end)
 
-    def result(self, msg):
-        self.logger.log(self.LEVELS["result"], msg)
+    def result(self, *args, sep=" ", end=""):
+        self.logger.log(self.LEVELS["result"], sep.join(str(arg) for arg in args) + end)
