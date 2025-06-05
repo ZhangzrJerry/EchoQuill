@@ -52,12 +52,14 @@ class PrependFileHandler(logging.FileHandler):
 
 class BetterLogger:
     LEVELS = {
+        "trace": 0,
         "debug": logging.DEBUG,
         "info": logging.INFO,
-        "warn": logging.WARNING,
-        "error": logging.ERROR,
         "param": 24,
         "result": 25,
+        "warn": logging.WARNING,
+        "error": logging.ERROR,
+        "fatal": logging.FATAL,
     }
 
     def __init__(self, directory="log", console_output=True):
@@ -108,3 +110,9 @@ class BetterLogger:
 
     def result(self, *args, sep=" ", end=""):
         self.logger.log(self.LEVELS["result"], sep.join(str(arg) for arg in args) + end)
+
+    def trace(self, *args, sep=" ", end=""):
+        self.logger.log(self.LEVELS["trace"], sep.join(str(arg) for arg in args) + end)
+
+    def fatal(self, *args, sep=" ", end=""):
+        self.logger.fatal(sep.join(str(arg) for arg in args) + end)

@@ -1,5 +1,7 @@
 # Echo Quill 📜
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zhangzrjerry/echoquill/python-package.yml)
+
 A structured, intelligent logger for Python workflows — especially useful for ML experiments, benchmarks, and reproducible research.
 
 Echo Quill enhances Python’s built-in `logging` module by introducing custom log levels like `[PARAM]` and `[RESULT]`, which are automatically organized in the log file to improve readability and traceability.
