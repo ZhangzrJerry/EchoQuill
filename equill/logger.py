@@ -41,6 +41,8 @@ class PrependFileHandler(logging.FileHandler):
                         for i, line in enumerate(content):
                             if "[RESULT]" in line:
                                 insert_idx = i + 1
+                            else:
+                                break
                         content.insert(insert_idx, msg + "\n")
 
                     f.seek(0)
