@@ -15,7 +15,7 @@ This makes it easy to:
 ## Installation
 
 ```bash
-pip install git@https://github.com/ZhangzrJerry/EchoQuill.git
+pip install git+https://github.com/ZhangzrJerry/EchoQuill.git
 ```
 
 ## Example Output
