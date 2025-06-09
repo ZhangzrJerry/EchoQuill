@@ -2,6 +2,7 @@ import os
 import logging
 import time
 from threading import Lock
+import json
 
 
 class PrependFileHandler(logging.FileHandler):
@@ -74,6 +75,7 @@ class BetterLogger:
         # Register custom levels only once
         logging.addLevelName(self.LEVELS["param"], "PARAM")
         logging.addLevelName(self.LEVELS["result"], "RESULT")
+        logging.addLevelName(self.LEVELS["trace"], "TRACE")
 
         self.logger = logging.getLogger("equill_logger")
         self.logger.setLevel(logging.DEBUG)
@@ -106,11 +108,20 @@ class BetterLogger:
     def warn(self, *args, sep=" ", end=""):
         self.logger.warning(sep.join(str(arg) for arg in args) + end)
 
+    def warning(self, *args, sep=" ", end=""):
+        self.logger.warning(sep.join(str(arg) for arg in args) + end)
+
     def error(self, *args, sep=" ", end=""):
         self.logger.error(sep.join(str(arg) for arg in args) + end)
 
     def param(self, *args, sep=" ", end=""):
-        self.logger.log(self.LEVELS["param"], sep.join(str(arg) for arg in args) + end)
+        if len(args) == 1 and isinstance(args[0], dict):
+            for key, value in args[0].items():
+                self.logger.log(self.LEVELS["param"], f"{key}: {value}")
+        else:
+            self.logger.log(
+                self.LEVELS["param"], sep.join(str(arg) for arg in args) + end
+            )
 
     def result(self, *args, sep=" ", end=""):
         self.logger.log(self.LEVELS["result"], sep.join(str(arg) for arg in args) + end)
