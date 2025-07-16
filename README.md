@@ -22,7 +22,7 @@ pip install git+https://github.com/ZhangzrJerry/EchoQuill.git
 
 ```py
 from equill import Logger
-logger = Logger(log_dir="logs", console_output=True)
+logger = Logger(directory="logs", console_output=True)
 
 logger.info("Training started...")
 
