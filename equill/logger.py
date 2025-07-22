@@ -2,132 +2,234 @@ import os
 import logging
 import time
 from threading import Lock
-import json
+from typing import Optional, Callable, Any, List, Dict
+import sys
+from datetime import datetime
+import io
+
+MAX_CALLBACKS = 32
+
+# Log levels
+LOG_TRACE = 0
+LOG_DEBUG = logging.DEBUG
+LOG_INFO = logging.INFO
+LOG_WARN = logging.WARNING
+LOG_ERROR = logging.ERROR
+LOG_FATAL = logging.CRITICAL
+
+level_strings = {
+    LOG_TRACE: "TRACE",
+    LOG_DEBUG: "DEBUG",
+    LOG_INFO: "INFO",
+    LOG_WARN: "WARN",
+    LOG_ERROR: "ERROR",
+    LOG_FATAL: "FATAL",
+}
+
+level_colors = {
+    LOG_TRACE: "\033[94m",
+    LOG_DEBUG: "\033[36m",
+    LOG_INFO: "\033[32m",
+    LOG_WARN: "\033[33m",
+    LOG_ERROR: "\033[31m",
+    LOG_FATAL: "\033[35m",
+}
 
 
-class PrependFileHandler(logging.FileHandler):
-    def __init__(self, filename, mode="a", encoding=None, delay=False):
-        super().__init__(filename, mode, encoding, delay)
-        self._prepend_lock = Lock()
+class LogEvent:
+    def __init__(self):
+        self.fmt = ""
+        self.file = ""
+        self.line = 0
+        self.level = LOG_INFO
+        self.time: Optional[datetime] = None
+        self.udata: Optional[Any] = None
+        self.args: Optional[tuple] = None
 
-    def emit(self, record):
-        msg = self.format(record)
-        if record.levelname not in ("PARAM", "RESULT"):
-            super().emit(record)
-            return
+
+class LogCallback:
+    def __init__(self, fn: Callable[[LogEvent], None], udata: Any, level: int):
+        self.fn = fn
+        self.udata = udata
+        self.level = level
+
+
+class Logger:
+    _instance = None
+    _lock = Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialize()
+        return cls._instance
+
+    def _initialize(self):
+        self.udata = None
+        self.lock_fn = None
+        self.level = LOG_TRACE
+        self.quiet = False
+        self.callbacks: List[LogCallback] = []
+
+        # Register custom levels
+        logging.addLevelName(LOG_TRACE, "TRACE")
+
+        # Default stdout callback
+        self.add_callback(self.stdout_callback, sys.stderr, LOG_TRACE)
+
+    def lock(self, lock: bool):
+        if self.lock_fn:
+            self.lock_fn(lock, self.udata)
+
+    def set_lock(self, fn: Callable[[bool, Any], None], udata: Any):
+        self.lock_fn = fn
+        self.udata = udata
+
+    def set_level(self, level: int):
+        self.level = level
+
+    def set_quiet(self, enable: bool):
+        self.quiet = enable
+
+    def add_callback(
+        self, fn: Callable[[LogEvent], None], udata: Any, level: int
+    ) -> bool:
+        if len(self.callbacks) >= MAX_CALLBACKS:
+            return False
+        self.callbacks.append(LogCallback(fn, udata, level))
+        return True
+
+    def add_file(self, filename: str, level: int = LOG_TRACE) -> bool:
+        for callback in self.callbacks:
+            if isinstance(
+                callback.udata, io.TextIOWrapper
+            ) and callback.udata.name == os.path.abspath(filename):
+                return True
+        try:
+            if not os.path.exists(os.path.dirname(filename)):
+                os.makedirs(os.path.dirname(filename))
+            fp = open(filename, "a", encoding="utf-8")
+            return self.add_callback(self.file_callback, fp, level)
+        except Exception as e:
+            sys.stderr.write(f"Failed to open log file {filename}: {e}\n")
+            sys.stderr.flush()
+            return False
+
+    def stdout_callback(self, ev: LogEvent):
+        time_str = ev.time.strftime("%H:%M:%S") if ev.time else "00:00:00"
+        level_str = level_strings.get(ev.level, "INFO")
+        color = level_colors.get(ev.level, "")
+
+        message = ev.fmt
+        if ev.args:
+            message = message % ev.args
+
+        file_info = f"{os.path.basename(ev.file)}:{ev.line}"
+
+        print(
+            f"{time_str} {color}{level_str:<5}\033[0m \033[90m{file_info}:\033[0m {message}",
+            file=ev.udata,
+        )
+
+    def file_callback(self, ev: LogEvent):
+        time_str = ev.time.strftime("%H:%M:%S") if ev.time else "00:00:00"
+        level_str = level_strings.get(ev.level, "INFO")
+
+        message = ev.fmt
+        if ev.args:
+            message = message % ev.args
+
+        print(
+            f"{time_str} {level_str:<5} {ev.file}:{ev.line}: {message}", file=ev.udata
+        )
+
+    def log(self, level: int, file: str, line: int, fmt: str, *args):
+        ev = LogEvent()
+        ev.fmt = fmt
+        ev.file = file
+        ev.line = line
+        ev.level = level
+        ev.time = datetime.now()
+        ev.args = args
 
         try:
-            with self._prepend_lock:
-                if not os.path.exists(self.baseFilename):
-                    with open(self.baseFilename, "w", encoding=self.encoding) as f:
-                        f.write(msg + "\n")
-                    return
+            self.lock(True)
 
-                with open(self.baseFilename, "r+", encoding=self.encoding) as f:
-                    content = f.readlines()
+            if self.quiet or level < self.level:
+                return
 
-                    if record.levelname == "PARAM":
-                        # Insert after all existing PARAMs but before first non-PARAM line
-                        insert_idx = 0
-                        for i, line in enumerate(content):
-                            if "[PARAM]" in line:
-                                insert_idx = i + 1
-                            else:
-                                break
-                        content.insert(insert_idx, msg + "\n")
+            for callback in self.callbacks:
+                if level >= callback.level:
+                    ev.udata = callback.udata
+                    callback.fn(ev)
 
-                    elif record.levelname == "RESULT":
-                        # Insert after all existing RESULTs but before first non-RESULT line
-                        insert_idx = len(content)
-                        for i, line in enumerate(content):
-                            if "[RESULT]" in line:
-                                insert_idx = i + 1
-                            elif "[PARAM]" in line:
-                                insert_idx = i + 1
-                            else:
-                                break
-                        content.insert(insert_idx, msg + "\n")
+        finally:
+            self.lock(False)
 
-                    f.seek(0)
-                    f.writelines(content)
-                    f.truncate()
-        except Exception as e:
-            print(f"Error writing log: {e}")
+    # Convenience methods
+    def trace(self, fmt: str, *args):
+        frame = sys._getframe(2)
+        self.log(LOG_TRACE, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
+
+    def debug(self, fmt: str, *args):
+        frame = sys._getframe(2)
+        self.log(LOG_DEBUG, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
+
+    def info(self, fmt: str, *args):
+        frame = sys._getframe(2)
+        self.log(LOG_INFO, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
+
+    def warn(self, fmt: str, *args):
+        frame = sys._getframe(2)
+        self.log(LOG_WARN, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
+
+    def error(self, fmt: str, *args):
+        frame = sys._getframe(2)
+        self.log(LOG_ERROR, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
+
+    def fatal(self, fmt: str, *args):
+        frame = sys._getframe(2)
+        self.log(LOG_FATAL, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
-class BetterLogger:
-    LEVELS = {
-        "trace": 0,
-        "debug": logging.DEBUG,
-        "info": logging.INFO,
-        "param": 24,
-        "result": 25,
-        "warn": logging.WARNING,
-        "error": logging.ERROR,
-        "fatal": logging.FATAL,
-    }
+# Global logger instance
+logger = Logger()
 
-    def __init__(self, directory="log", console_output=True):
-        self.directory = directory
-        file_name = f"{time.strftime('%Y%m%d_%H%M%S')}.log"
-        self.file_path = os.path.join(directory, file_name)
 
-        # Register custom levels only once
-        logging.addLevelName(self.LEVELS["param"], "PARAM")
-        logging.addLevelName(self.LEVELS["result"], "RESULT")
-        logging.addLevelName(self.LEVELS["trace"], "TRACE")
+# Shortcut functions
+def log_trace(fmt: str, *args):
+    logger.trace(fmt, *args)
 
-        self.logger = logging.getLogger("equill_logger")
-        self.logger.setLevel(logging.DEBUG)
 
-        # Avoid duplicate handlers
-        self.logger.handlers.clear()
+def log_debug(fmt: str, *args):
+    logger.debug(fmt, *args)
 
-        # Ensure log directory exists
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
 
-        # File handler
-        fh = PrependFileHandler(self.file_path)
-        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
+def log_info(fmt: str, *args):
+    logger.info(fmt, *args)
 
-        # Optional console handler
-        if console_output:
-            ch = logging.StreamHandler()
-            ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
 
-    def debug(self, *args, sep=" ", end=""):
-        self.logger.debug(sep.join(str(arg) for arg in args) + end)
+def log_warn(fmt: str, *args):
+    logger.warn(fmt, *args)
 
-    def info(self, *args, sep=" ", end=""):
-        self.logger.info(sep.join(str(arg) for arg in args) + end)
 
-    def warn(self, *args, sep=" ", end=""):
-        self.logger.warning(sep.join(str(arg) for arg in args) + end)
+def log_error(fmt: str, *args):
+    logger.error(fmt, *args)
 
-    def warning(self, *args, sep=" ", end=""):
-        self.logger.warning(sep.join(str(arg) for arg in args) + end)
 
-    def error(self, *args, sep=" ", end=""):
-        self.logger.error(sep.join(str(arg) for arg in args) + end)
+def log_fatal(fmt: str, *args):
+    logger.fatal(fmt, *args)
 
-    def param(self, *args, sep=" ", end=""):
-        if len(args) == 1 and isinstance(args[0], dict):
-            for key, value in args[0].items():
-                self.logger.log(self.LEVELS["param"], f"{key}: {value}")
-        else:
-            self.logger.log(
-                self.LEVELS["param"], sep.join(str(arg) for arg in args) + end
-            )
 
-    def result(self, *args, sep=" ", end=""):
-        self.logger.log(self.LEVELS["result"], sep.join(str(arg) for arg in args) + end)
+def log_set_level(level: int):
+    logger.set_level(level)
 
-    def trace(self, *args, sep=" ", end=""):
-        self.logger.log(self.LEVELS["trace"], sep.join(str(arg) for arg in args) + end)
 
-    def fatal(self, *args, sep=" ", end=""):
-        self.logger.fatal(sep.join(str(arg) for arg in args) + end)
+def log_set_quiet(enable: bool):
+    logger.set_quiet(enable)
+
+
+def log_add_file(filename: str, level: int = LOG_TRACE) -> bool:
+    return logger.add_file(filename, level)

@@ -1,1 +1,18 @@
-from .logger import BetterLogger as Logger
+from .logger import (
+    Logger,
+    log_trace,
+    log_debug,
+    log_info,
+    log_warn,
+    log_error,
+    log_fatal,
+    log_set_level,
+    log_add_file,
+    log_set_quiet,
+    LOG_TRACE,
+    LOG_DEBUG,
+    LOG_INFO,
+    LOG_WARN,
+    LOG_ERROR,
+    LOG_FATAL,
+)

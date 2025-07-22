@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "equill"
-version = "0.1.0"
+version = "0.2.0"
 description = "A structured, intelligent logger for Python workflows — especially useful for ML experiments, benchmarks, and reproducible research."
 authors = [
     { name = "ZhangzrJerry", email = "zhangzrjerry@outlook.com" }
