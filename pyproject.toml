@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "equill"
+version = "0.1.0"
+description = "A structured, intelligent logger for Python workflows — especially useful for ML experiments, benchmarks, and reproducible research."
+authors = [
+    { name = "ZhangzrJerry", email = "zhangzrjerry@outlook.com" }
+]
+requires-python = ">=3.6"
+
+[tool.setuptools.packages.find]
+where = ["."]
