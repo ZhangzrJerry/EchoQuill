@@ -170,27 +170,27 @@ class Logger:
 
     # Convenience methods
     def trace(self, fmt: str, *args):
-        frame = sys._getframe(2)
+        frame = sys._getframe(1)
         self.log(LOG_TRACE, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
     def debug(self, fmt: str, *args):
-        frame = sys._getframe(2)
+        frame = sys._getframe(1)
         self.log(LOG_DEBUG, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
     def info(self, fmt: str, *args):
-        frame = sys._getframe(2)
+        frame = sys._getframe(1)
         self.log(LOG_INFO, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
     def warn(self, fmt: str, *args):
-        frame = sys._getframe(2)
+        frame = sys._getframe(1)
         self.log(LOG_WARN, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
     def error(self, fmt: str, *args):
-        frame = sys._getframe(2)
+        frame = sys._getframe(1)
         self.log(LOG_ERROR, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
     def fatal(self, fmt: str, *args):
-        frame = sys._getframe(2)
+        frame = sys._getframe(1)
         self.log(LOG_FATAL, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
@@ -200,27 +200,33 @@ logger = Logger()
 
 # Shortcut functions
 def log_trace(fmt: str, *args):
-    logger.trace(fmt, *args)
+    frame = sys._getframe(1)
+    logger.log(LOG_TRACE, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
 def log_debug(fmt: str, *args):
-    logger.debug(fmt, *args)
+    frame = sys._getframe(1)
+    logger.log(LOG_DEBUG, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
 def log_info(fmt: str, *args):
-    logger.info(fmt, *args)
+    frame = sys._getframe(1)
+    logger.log(LOG_INFO, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
 def log_warn(fmt: str, *args):
-    logger.warn(fmt, *args)
+    frame = sys._getframe(1)
+    logger.log(LOG_WARN, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
 def log_error(fmt: str, *args):
-    logger.error(fmt, *args)
+    frame = sys._getframe(1)
+    logger.log(LOG_ERROR, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
 def log_fatal(fmt: str, *args):
-    logger.fatal(fmt, *args)
+    frame = sys._getframe(1)
+    logger.log(LOG_FATAL, frame.f_code.co_filename, frame.f_lineno, fmt, *args)
 
 
 def log_set_level(level: int):
